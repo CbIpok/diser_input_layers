@@ -68,8 +68,8 @@ class CosineWaveArea(Area):
         cy, cx = self.points[:,1].mean(), self.points[:,0].mean()
         dy = yy - cy
         dx = xx - cx
-        r1 = (self.points[:,0].max() - self.points[:,0].min()) / 2
-        r2 = (self.points[:,1].max() - self.points[:,1].min()) / 2
+        r1 = (self.points[:,0].max() - self.points[:,0].min()) / 3
+        r2 = (self.points[:,1].max() - self.points[:,1].min()) / 3
         rad = np.sqrt((dx/r1)**2 + (dy/r2)**2)
         valid = rad <= 1.0
         wave = np.full(mask.shape, np.nan)
