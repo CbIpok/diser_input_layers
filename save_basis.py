@@ -112,12 +112,6 @@ for i_rot in i_vals:
         # координаты нижнего-левого угла в центр-коорд
         x0c = i_rot
         y0c = j_rot
-        # обратно в глобальные
-        x0 = cos_r * (x0c - offset_x) - sin_r * (y0c - offset_y) + cx
-        y0 = sin_r * (x0c - offset_x) + cos_r * (y0c - offset_y) + cy
-        rect = Rectangle((x0, y0), w, w, angle=-rotation, fill=False,
-                         edgecolor='blue', linewidth=0.5)
-        ax.add_patch(rect)
         # сохраняем базисную функцию
         basis = mask.astype(float)
         out_path = os.path.join(basis_dir, f'basis_{idx}.wave')
