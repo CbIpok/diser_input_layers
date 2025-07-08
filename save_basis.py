@@ -6,10 +6,10 @@ from matplotlib.patches import Rectangle
 from matplotlib.path import Path
 
 # Параметры (жестко закодированы)
-w = 170               # сторона квадрата
+w = 75               # сторона квадрата
 rotation = -30          # угол поворота сетки по часовой стрелке, градусы
-offset_x = -5         # смещение сетки по X в повёрнутых координатах
-offset_y = 5          # смещение сетки по Y в повёрнутых координатах
+offset_x = -25         # смещение сетки по X в повёрнутых координатах
+offset_y = 0          # смещение сетки по Y в повёрнутых координатах
 
 # Пути
 config_path = os.path.join('data', 'config.json')
@@ -34,18 +34,18 @@ with open(area_json, 'r', encoding='utf-8') as f:
     area_data = json.load(f)
 verts = np.array(area_data['points'])
 # Центр области (среднее по вершинам)
-cx, cy = verts[:,0].mean(), verts[:,1].mean()
+cx, cy = verts[:,0].min(), verts[:,1].min()
 
 # Сдвигаем координаты в центр области
-Xc = X - cx
-Yc = Y - cy
+Xc = X - cx + offset_x
+Yc = Y - cy + offset_y
 
 # Вычисляем поворот
 rad = np.deg2rad(rotation)
 cos_r, sin_r = np.cos(rad), np.sin(rad)
 # Поворотные координаты для разбиения
-Xr = cos_r * Xc + sin_r * Yc + offset_x
-Yr = -sin_r * Xc + cos_r * Yc + offset_y
+Xr = cos_r * Xc + sin_r * Yc
+Yr = -sin_r * Xc + cos_r * Yc
 
 # Булева маска области без учёта смещения/поворота
 polygon_path = Path(verts)
@@ -53,8 +53,8 @@ points = np.vstack((X.flatten(), Y.flatten())).T
 mask_poly = polygon_path.contains_points(points).reshape(ny, nx)
 
 # Определяем диапазон шагов
-xr_min, xr_max = Xr.min(), Xr.max()
-yr_min, yr_max = Yr.min(), Yr.max()
+xr_min, xr_max = Xr.min()+1600, Xr.max()-1600 #omg shit numbers
+yr_min, yr_max = Yr.min()+1600, Yr.max()-1600
 i_start = np.floor(xr_min / w) * w
 i_end   = np.ceil(xr_max / w) * w
 j_start = np.floor(yr_min / w) * w
