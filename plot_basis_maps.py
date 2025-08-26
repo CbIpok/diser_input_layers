@@ -38,19 +38,19 @@ def load_basis(path: str):
 
     for key, val in data.items():
         x, y = ast.literal_eval(key)
-        xs.append(x)
-        ys.append(y)
-        approx_errors.append(val["aprox_error"])
-        coef_vals = val["coefs"]
+        xs.append(float(x))
+        ys.append(float(y))
+        approx_errors.append(float(val["aprox_error"]))
+        coef_vals = [float(c) for c in val["coefs"]]
         if not coefs:
             coefs = [[] for _ in coef_vals]
         for idx, c in enumerate(coef_vals):
             coefs[idx].append(c)
 
-    xs_arr = np.array(xs)
-    ys_arr = np.array(ys)
-    approx_arr = np.array(approx_errors)
-    coef_arrays = [np.array(c) for c in coefs]
+    xs_arr = np.asarray(xs, dtype=float)
+    ys_arr = np.asarray(ys, dtype=float)
+    approx_arr = np.asarray(approx_errors, dtype=float)
+    coef_arrays = [np.asarray(c, dtype=float) for c in coefs]
     return xs_arr, ys_arr, approx_arr, coef_arrays
 
 
