@@ -26,6 +26,14 @@ import matplotlib.tri as tri
 import numpy as np
 
 
+def _to_float(value) -> float:
+    """Return float(value) or NaN if conversion fails or value is None."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("nan")
+
+
 def load_basis(path: str):
     """Load coordinate and coefficient data from JSON file."""
     with open(path, "r", encoding="utf-8") as f:
@@ -40,8 +48,8 @@ def load_basis(path: str):
         x, y = ast.literal_eval(key)
         xs.append(float(x))
         ys.append(float(y))
-        approx_errors.append(float(val["aprox_error"]))
-        coef_vals = [float(c) for c in val["coefs"]]
+        approx_errors.append(_to_float(val.get("aprox_error")))
+        coef_vals = [_to_float(c) for c in val.get("coefs", [])]
         if not coefs:
             coefs = [[] for _ in coef_vals]
         for idx, c in enumerate(coef_vals):
@@ -57,14 +65,18 @@ def load_basis(path: str):
 def plot_maps(xs: np.ndarray, ys: np.ndarray, approx_err: np.ndarray,
               coefs: List[np.ndarray], out_dir: str | None = None):
     """Generate height maps for approximation error and coefficients."""
-    triang = tri.Triangulation(xs, ys)
     variables = [("approx_error", approx_err)]
     variables += [(f"coef_{i+1}", arr) for i, arr in enumerate(coefs)]
 
     output_files = []
     for title, arr in variables:
+        mask = np.isfinite(arr)
+        if mask.sum() < 3:
+            # Not enough points to build triangulation
+            continue
+        triang = tri.Triangulation(xs[mask], ys[mask])
         fig, ax = plt.subplots()
-        tpc = ax.tricontourf(triang, arr, levels=100)
+        tpc = ax.tricontourf(triang, arr[mask], levels=100)
         ax.set_title(title.replace("_", " "))
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
