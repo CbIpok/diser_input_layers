@@ -1,9 +1,8 @@
 import argparse
 import os
+import warnings
 from typing import List
 
-import matplotlib
-matplotlib.use("Agg")  # Allow plotting without display
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -52,7 +51,16 @@ def plot_mse(mses: List[float], i: int, out_path: str | None = None) -> None:
         fig.savefig(out_path)
         plt.close(fig)
     else:
-        plt.show()
+        backend = plt.get_backend().lower()
+        if "agg" in backend:
+            warnings.warn(
+                "Current Matplotlib backend is non-interactive; "
+                "use --save to write plot to a file.",
+                RuntimeWarning,
+            )
+            plt.close(fig)
+        else:
+            plt.show()
 
 
 def main() -> None:
