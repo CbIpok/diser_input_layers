@@ -38,7 +38,21 @@ def compute_mse(function: np.ndarray, basis_waves: List[np.ndarray],
 
 
 def plot_mse(mses: List[float], i: int, out_path: str | None = None) -> None:
-    """Plot MSE values. Save to ``out_path`` if provided, otherwise show."""
+    """Plot MSE values.
+
+    Parameters
+    ----------
+    mses:
+        Sequence of mean squared error values for progressively more basis
+        functions.
+    i:
+        Index of the current basis set. Used for titling and default file name
+        when saving.
+    out_path:
+        Optional path to save the plot. If omitted, the plot is shown when the
+        backend is interactive. In non-interactive environments, the plot is
+        automatically saved to ``mse_basis_{i}.png`` in the current directory.
+    """
     fig, ax = plt.subplots()
     xs = np.arange(1, len(mses) + 1)
     ax.plot(xs, mses, marker="o")
@@ -46,21 +60,25 @@ def plot_mse(mses: List[float], i: int, out_path: str | None = None) -> None:
     ax.set_ylabel("Mean squared error")
     ax.set_title(f"MSE for basis_{i}")
     ax.grid(True)
+
     if out_path:
         os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
         fig.savefig(out_path)
         plt.close(fig)
+        return
+
+    backend = plt.get_backend().lower()
+    if "agg" in backend:
+        auto_path = f"mse_basis_{i}.png"
+        fig.savefig(auto_path)
+        warnings.warn(
+            "Current Matplotlib backend is non-interactive; "
+            f"plot saved to {auto_path}.",
+            RuntimeWarning,
+        )
+        plt.close(fig)
     else:
-        backend = plt.get_backend().lower()
-        if "agg" in backend:
-            warnings.warn(
-                "Current Matplotlib backend is non-interactive; "
-                "use --save to write plot to a file.",
-                RuntimeWarning,
-            )
-            plt.close(fig)
-        else:
-            plt.show()
+        plt.show()
 
 
 def main() -> None:
@@ -75,8 +93,14 @@ def main() -> None:
                         help="Root directory containing basis_i folders")
     parser.add_argument("--function-file", default="data/functions.wave",
                         help="Path to the real function array")
-    parser.add_argument("--save", default=None,
-                        help="Path to save the MSE plot (PNG). If omitted, show")
+    parser.add_argument(
+        "--save",
+        default=None,
+        help=(
+            "Path to save the MSE plot (PNG). If omitted, the plot is shown "
+            "when possible; otherwise it is written to mse_basis_<i>.png."
+        ),
+    )
     args = parser.parse_args()
 
     # Load real function
