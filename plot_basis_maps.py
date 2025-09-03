@@ -160,7 +160,7 @@ def calc_mse(to_restore, bases, xs_arr, ys_arr, coef_arrays, block=512, dtype=np
 
     # Выкладываем результаты в нужные координаты, остальное — NaN
     out = np.full_like(grid, np.nan, dtype=np.float64)
-    out[xs, ys] = mse_vals
+    out[xs, ys] = np.sqrt(mse_vals)
     mse = out
     plt.figure(figsize=(10, 8))
     # Используем псевдоцветное изображение с учетом NaN значений
