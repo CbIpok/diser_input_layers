@@ -20,7 +20,6 @@ import os
 from typing import List
 
 import matplotlib
-matplotlib.use("Agg")  # Ensure plots can be created without a display
 import matplotlib.pyplot as plt
 import matplotlib.tri as tri
 import numpy as np
@@ -34,7 +33,7 @@ def _to_float(value) -> float:
         return float("nan")
 
 
-def load_basis(path: str):
+def load_basis_coofs(path: str):
     """Load coordinate and coefficient data from JSON file."""
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -60,6 +59,36 @@ def load_basis(path: str):
     approx_arr = np.asarray(approx_errors, dtype=float)
     coef_arrays = [np.asarray(c, dtype=float) for c in coefs]
     return xs_arr, ys_arr, approx_arr, coef_arrays
+
+
+def load_basis(path: str):
+    arrays = []
+    indices = []
+
+    # Проверяем, что путь существует
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Directory {path} does not exist")
+
+    # Перебираем файлы в директории
+    for filename in os.listdir(path):
+        if filename.startswith("basis_") and filename.endswith(".wave"):
+            # Извлекаем числовую часть между 'basis_' и '.wave'
+            try:
+                index = int(filename.split('_')[1].split('.')[0])
+            except (IndexError, ValueError):
+                continue  # Пропускаем файлы с неправильным форматом
+
+            full_path = os.path.join(path, filename)
+            # Загружаем данные из файла
+            data = np.loadtxt(full_path)
+            # Заменяем 0 на NaN
+            data[data == 0] = np.nan
+            arrays.append(data)
+            indices.append(index)
+
+    # Сортируем массивы по индексам
+    sorted_arrays = [array for _, array in sorted(zip(indices, arrays))]
+    return sorted_arrays
 
 
 def plot_maps(xs: np.ndarray, ys: np.ndarray, approx_err: np.ndarray,
@@ -114,7 +143,7 @@ def main():
     args = parser.parse_args()
 
     file_path = os.path.join(args.folder, f"basis_{args.i}.json")
-    xs, ys, approx_err, coefs = load_basis(file_path)
+    xs, ys, approx_err, coefs = load_basis_coofs(file_path)
     plot_maps(xs, ys, approx_err, coefs, args.save_dir)
 
 
