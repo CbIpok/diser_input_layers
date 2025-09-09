@@ -4,3 +4,4 @@ data
 /utils/__pycache__
 /coefs_process
 *.png
+prompt.txt

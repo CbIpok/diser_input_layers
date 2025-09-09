@@ -35,6 +35,56 @@ def _to_float(value) -> float:
     except (TypeError, ValueError):
         return float("nan")
 
+def plot_aprox_error_raw(xs: np.ndarray,
+                         ys: np.ndarray,
+                         approx_err: np.ndarray,
+                         out_dir: str | None = None):
+    """
+    Кладёт значения 'aprox_error' строго в их ячейки (xs, ys) без триангуляции
+    и показывает/сохраняет картинку. Остальные пиксели — NaN.
+    """
+    # Берём форму сетки, чтобы знать финальный размер
+    with open('data/config.json', 'r', encoding='utf-8') as f:
+        cfg = json.load(f)
+    grid = load_bath_grid(cfg['bath_path'])
+    H, W = grid.shape
+
+    # Готовим "полотно" и индексы
+    raw = np.full((H, W), np.nan, dtype=float)
+    xi = np.asarray(xs, dtype=int)
+    yi = np.asarray(ys, dtype=int)
+
+    # Защитная маска: только валидные и попадающие в границы точки
+    mask = (
+        (xi >= 0) & (xi < H) &
+        (yi >= 0) & (yi < W) &
+        np.isfinite(approx_err)
+    )
+
+    raw[xi[mask], yi[mask]] = approx_err[mask]
+
+    # Рисуем "как есть" (как и в calc_mse — транспонируем и origin='lower')
+    plt.figure(figsize=(10, 8))
+    im = plt.imshow(
+        raw.T,
+        origin='lower',
+        interpolation='nearest',
+        cmap='viridis'
+    )
+    plt.colorbar(im, label='aprox_error (raw)')
+    plt.xlabel('X Index')
+    plt.ylabel('Y Index')
+    plt.title('aprox_error (raw)')
+
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+        path = os.path.join(out_dir, 'aprox_error_raw.png')
+        plt.savefig(path)
+        plt.close()
+        return [path]
+    else:
+        plt.show()
+        return []
 
 def load_basis_coofs(path: str):
     """Load coordinate and coefficient data from JSON file."""
@@ -229,9 +279,17 @@ def main():
 
     file_path = os.path.join(args.folder, f"basis_{args.i}.json")
     xs, ys, approx_err, coefs = load_basis_coofs(file_path)
+
     basis = np.array(load_basis(f"data/basis_{args.i}"))
     to_restore = np.loadtxt("data/functions.wave")
-    calc_mse(to_restore,basis,xs,ys,coefs)
+
+    # Считаем и показываем RMSE-карту
+    calc_mse(to_restore, basis, xs, ys, coefs)
+
+    # Показываем "сырые" значения aprox_error — как есть, без триангуляции
+    plot_aprox_error_raw(xs, ys, approx_err, args.save_dir)
+
+    # Плюс прежние карты (в т.ч. сглаженная карта approx_error через триангуляцию)
     plot_maps(xs, ys, approx_err, coefs, args.save_dir)
 
 
