@@ -5,3 +5,5 @@ data
 /coefs_process
 *.png
 prompt.txt
+/tests/__pycache__
+/tests/integration/__pycache__
