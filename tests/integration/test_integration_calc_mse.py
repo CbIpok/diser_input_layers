@@ -37,10 +37,13 @@ class TestIntegrationCalcMSE(unittest.TestCase):
             cfg = json.load(f)
         self.assertEqual(mse.shape, (cfg['size']['y'], cfg['size']['x']))
         # There should be finite values at the provided coordinates (or their subset)
-        nn = np.isfinite(mse[tuple(xs.astype(int)), tuple(ys.astype(int))]).sum()
+        # Account for saved stride in coordinates from JSON
+        stride = int(cfg.get('save_interval', 1))
+        xi = (xs * stride).astype(int)
+        yi = (ys * stride).astype(int)
+        nn = np.isfinite(mse[tuple(yi), tuple(xi)]).sum()
         self.assertGreater(nn, 0)
 
 
 if __name__ == '__main__':
     unittest.main()
-

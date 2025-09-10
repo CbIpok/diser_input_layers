@@ -7,3 +7,7 @@ data
 prompt.txt
 /tests/__pycache__
 /tests/integration/__pycache__
+/diser/core/__pycache__
+/diser/__pycache__
+/diser/io/__pycache__
+*.npy
