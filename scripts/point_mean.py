@@ -20,6 +20,8 @@ def parse_args():
     p.add_argument('--save-mean', required=True, help='Output .npy for mean reconstruction')
     p.add_argument('--save-smooth', default=None, help='Output .npy for smoothed mean (optional)')
     p.add_argument('--save-dir', default=None, help='Directory to save PNG visualizations')
+    p.add_argument('--img-formats', default='png,svg',
+                   help='Comma-separated image formats to save (e.g., png or png,svg)')
     p.add_argument('--subtract-functions', action='store_true',
                    help='Subtract functions.wave from the resulting mean (and smoothed) before saving and plotting')
     return p.parse_args()
@@ -39,7 +41,11 @@ def main():
     # Note: previously applied an edge-aware filter to mean_Z here; removed.
     # Optionally subtract functions.wave from the resulting forms
     if args.subtract_functions:
-        func = np.loadtxt(args.functions)
+        # Load reference functions array; support .npy for faster I/O
+        if str(args.functions).lower().endswith('.npy'):
+            func = np.load(args.functions)
+        else:
+            func = np.loadtxt(args.functions)
         if func.shape != mean_Z.shape:
             raise AssertionError(f"functions.wave shape {func.shape} differs from mean shape {mean_Z.shape}")
         mean_Z = mean_Z - func
@@ -73,7 +79,8 @@ def main():
         base_name = 'mean_reconstruction_minus_functions'
     plt.colorbar(label=cbar_label)
     plt.xlabel('X'); plt.ylabel('Y'); plt.title(f'{title_base} [{title_suffix}]')
-    save_figure_bundle(fig1, os.path.join(out_dir, base_name), formats=("png","svg"), with_pickle=True)
+    formats = tuple([s.strip() for s in str(args.img_formats).split(',') if s.strip()]) or ("png",)
+    save_figure_bundle(fig1, os.path.join(out_dir, base_name), formats=formats, with_pickle=True)
     plt.close(fig1)
 
     if smoothed is not None:
@@ -88,7 +95,7 @@ def main():
             base2 = 'mean_reconstruction_smoothed_minus_functions'
         plt.colorbar(label=cbar_label2)
         plt.xlabel('X'); plt.ylabel('Y'); plt.title(f'{title2} [{title_suffix}]')
-        save_figure_bundle(fig2, os.path.join(out_dir, base2), formats=("png","svg"), with_pickle=True)
+        save_figure_bundle(fig2, os.path.join(out_dir, base2), formats=formats, with_pickle=True)
         plt.close(fig2)
 
 

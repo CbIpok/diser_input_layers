@@ -163,7 +163,6 @@ def reconstruct_mean_over_i(i_list,
     """
     x_sel, y_sel = point_xy
     Zs = []
-    to_restore = np.loadtxt(functions_path)
     for i in i_list:
         coefs_json = os.path.join(folder, f'basis_{i}.json')
         basis_dir = os.path.join(basis_root, f'basis_{i}')
