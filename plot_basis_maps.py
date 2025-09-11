@@ -21,7 +21,7 @@ import numpy as np
 from loader import load_bath_grid
 from diser.io.coeffs import read_coef_json
 from diser.io.basis import load_basis_dir
-from diser.core.restore import pointwise_rmse_from_coefs, gaussian_smooth_nan
+from diser.core.restore import pointwise_rmse_from_coefs, pointwise_mean_error_from_coefs, gaussian_smooth_nan
 from diser.viz.figio import save_figure_bundle
 
 
@@ -70,6 +70,31 @@ def build_rmse_grid(to_restore, bases, xs_arr, ys_arr, coef_arrays, dtype=np.flo
     # берём значения из не-страйдовой решётки в исходных координатах
     vals = rmse_un[ys_un, xs_un]
     # и кладём их в страйдовые координаты
+    valid = np.isfinite(vals)
+    out[yi[valid], xi[valid]] = vals[valid]
+    return out
+
+
+def build_mean_error_grid(to_restore, bases, xs_arr, ys_arr, coef_arrays, dtype=np.float64):
+    """Signed mean error grid: place mean(T - sum c_j B_j) at sample coords (scaled by save_interval)."""
+    with open('data/config.json', 'r', encoding='utf-8') as f:
+        cfg = json.load(f)
+    grid = load_bath_grid(cfg['bath_path'])
+
+    k, Hb, Wb = bases.shape
+    Hg, Wg = grid.shape
+    assert (Hb, Wb) == (Hg, Wg), "bases vs grid shape mismatch"
+    assert to_restore.shape == (Hg, Wg), "to_restore vs grid shape mismatch"
+
+    stride = int(cfg.get('save_interval', 1))
+    xs_un = np.asarray(xs_arr, dtype=int)
+    ys_un = np.asarray(ys_arr, dtype=int)
+    mean_un = pointwise_mean_error_from_coefs(to_restore, bases, xs_un, ys_un, coef_arrays, dtype=dtype)
+
+    out = np.full_like(mean_un, np.nan)
+    xi = (xs_un * stride).astype(int)
+    yi = (ys_un * stride).astype(int)
+    vals = mean_un[ys_un, xs_un]
     valid = np.isfinite(vals)
     out[yi[valid], xi[valid]] = vals[valid]
     return out
@@ -240,12 +265,69 @@ def compute_rmse_for_i(i: int,
     return build_rmse_grid(to_restore, basis, xs, ys, coefs)
 
 
+def compute_mean_error_for_i(i: int,
+                             folder: str = 'coefs_process',
+                             basis_root: str = 'data',
+                             functions_path: str = 'data/functions.wave') -> np.ndarray:
+    file_path = os.path.join(folder, f"basis_{i}.json")
+    xs, ys, _, coefs = load_basis_coofs(file_path)
+    basis = np.array(load_basis(os.path.join(basis_root, f"basis_{i}")))
+    to_restore = np.loadtxt(functions_path)
+    return build_mean_error_grid(to_restore, basis, xs, ys, coefs)
+
+
 def average_rmse_over_i(i_list,
                         folder: str = 'coefs_process',
                         basis_root: str = 'data',
                         functions_path: str = 'data/functions.wave',
                         smooth_sigma: float | None = None):
     grids = [compute_rmse_for_i(i, folder, basis_root, functions_path) for i in i_list]
+    mean_grid = np.nanmean(np.stack(grids, axis=0), axis=0)
+    smoothed = gaussian_smooth_nan(mean_grid, sigma=smooth_sigma) if smooth_sigma and smooth_sigma > 0 else None
+    return mean_grid, smoothed
+
+
+def average_mean_error_over_i(i_list,
+                              folder: str = 'coefs_process',
+                              basis_root: str = 'data',
+                              functions_path: str = 'data/functions.wave',
+                              smooth_sigma: float | None = None):
+    grids = [compute_mean_error_for_i(i, folder, basis_root, functions_path) for i in i_list]
+    mean_grid = np.nanmean(np.stack(grids, axis=0), axis=0)
+    smoothed = gaussian_smooth_nan(mean_grid, sigma=smooth_sigma) if smooth_sigma and smooth_sigma > 0 else None
+    return mean_grid, smoothed
+
+
+def compute_aprox_error_for_i(i: int,
+                              folder: str = 'coefs_process') -> np.ndarray:
+    file_path = os.path.join(folder, f"basis_{i}.json")
+    samples = read_coef_json(file_path)
+    xs = np.asarray(samples.xs, dtype=int)
+    ys = np.asarray(samples.ys, dtype=int)
+    approx = np.asarray(samples.approx_error, dtype=float) if samples.approx_error is not None else np.array([])
+
+    with open('data/config.json', 'r', encoding='utf-8') as f:
+        cfg = json.load(f)
+    grid = load_bath_grid(cfg['bath_path'])
+    H, W = grid.shape
+    stride = int(cfg.get('save_interval', 1))
+    xi = xs * stride
+    yi = ys * stride
+    out = np.full((H, W), np.nan, dtype=float)
+    if approx.size:
+        mask = (
+            (yi >= 0) & (yi < H) &
+            (xi >= 0) & (xi < W) &
+            np.isfinite(approx)
+        )
+        out[yi[mask], xi[mask]] = approx[mask]
+    return out
+
+
+def average_aprox_error_over_i(i_list,
+                               folder: str = 'coefs_process',
+                               smooth_sigma: float | None = None):
+    grids = [compute_aprox_error_for_i(i, folder) for i in i_list]
     mean_grid = np.nanmean(np.stack(grids, axis=0), axis=0)
     smoothed = gaussian_smooth_nan(mean_grid, sigma=smooth_sigma) if smooth_sigma and smooth_sigma > 0 else None
     return mean_grid, smoothed

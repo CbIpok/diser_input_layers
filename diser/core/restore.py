@@ -72,6 +72,50 @@ def pointwise_rmse_from_coefs(to_restore: np.ndarray,
     return out
 
 
+def pointwise_mean_error_from_coefs(to_restore: np.ndarray,
+                                    bases: np.ndarray,
+                                    xs: np.ndarray,
+                                    ys: np.ndarray,
+                                    coefs: list[np.ndarray],
+                                    dtype=np.float64) -> np.ndarray:
+    """Compute signed mean error over valid region at given (xs, ys).
+
+    Mean error is E[T - sum_j c_j B_j] over the valid mask (where any basis is finite).
+    Returns grid with NaN everywhere except at provided indices.
+    """
+    grid = np.asarray(to_restore, dtype=dtype)
+    k, H, W = bases.shape
+    xs_i = np.asarray(xs, dtype=int)
+    ys_i = np.asarray(ys, dtype=int)
+    assert xs_i.size == ys_i.size
+
+    valid = np.any(np.isfinite(bases), axis=0).reshape(H * W)
+    idx = np.flatnonzero(valid)
+    if idx.size == 0:
+        return np.full_like(grid, np.nan)
+
+    B = bases.reshape(k, -1)[:, idx]
+    B = np.nan_to_num(B, nan=0.0, copy=False)
+    t = grid.reshape(-1)[idx]
+
+    # Precompute means over valid region
+    N = t.size
+    t_mean = float(t.mean())
+    b_means = B.mean(axis=1)  # (k,)
+
+    C = np.asarray(coefs, dtype=dtype)
+    if C.ndim == 1:
+        C = C[None, :]
+    if C.shape[0] == k:
+        C = C.T  # (M, k)
+
+    mean_err_vals = t_mean - (C @ b_means)
+
+    out = np.full_like(grid, np.nan)
+    out[ys_i, xs_i] = mean_err_vals
+    return out
+
+
 # --- Simple NaN-aware Gaussian smoothing (separable) ---
 def _gaussian_kernel_1d(sigma: float, radius: int | None = None) -> np.ndarray:
     if sigma <= 0:
