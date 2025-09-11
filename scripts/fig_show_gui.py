@@ -18,7 +18,6 @@ Notes
 import argparse
 import os
 import sys
-import threading
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -53,7 +52,8 @@ def _open_and_show(path: str | os.PathLike):
 
 
 def _handle_paths(paths: list[str]):
-    # Open each path in a separate thread so GUI doesn't block on plt.show
+    # Open each path on the main thread; do not start GUI from worker threads
+    # to avoid Matplotlib warning about starting GUI outside of main thread.
     for p in paths:
         if not p:
             continue
@@ -61,8 +61,7 @@ def _handle_paths(paths: list[str]):
         if ext != '.pkl' and not str(p).endswith('.mplfig.pkl'):
             # Accept both .mplfig.pkl and any .pkl (best effort)
             pass
-        t = threading.Thread(target=_open_and_show, args=(p,), daemon=True)
-        t.start()
+        _open_and_show(p)
 
 
 def _parse_dnd_file_list(data: str) -> list[str]:
@@ -172,4 +171,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
