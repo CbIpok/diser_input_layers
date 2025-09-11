@@ -21,7 +21,8 @@ import numpy as np
 from loader import load_bath_grid
 from diser.io.coeffs import read_coef_json
 from diser.io.basis import load_basis_dir
-from diser.core.restore import pointwise_rmse_from_coefs
+from diser.core.restore import pointwise_rmse_from_coefs, gaussian_smooth_nan
+from diser.viz.figio import save_figure_bundle
 
 
 def _to_float(value) -> float:
@@ -77,7 +78,7 @@ def build_rmse_grid(to_restore, bases, xs_arr, ys_arr, coef_arrays, dtype=np.flo
 def calc_mse(to_restore, bases, xs_arr, ys_arr, coef_arrays, block=512, dtype=np.float32):
     mse = build_rmse_grid(to_restore, bases, xs_arr, ys_arr, coef_arrays, dtype=np.float64)
 
-    plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(10, 8))
     im = plt.imshow(mse.T, origin='lower', cmap='viridis', interpolation='nearest')
     plt.colorbar(im, label='MSE')
     plt.xlabel('X Index')
@@ -221,8 +222,33 @@ def main():
         plt.title('RMSE (interpolated)')
         if args.save_dir:
             os.makedirs(args.save_dir, exist_ok=True)
-            fig.savefig(os.path.join(args.save_dir, 'rmse_interpolated.png'))
-        plt.show()
+            save_figure_bundle(fig, os.path.join(args.save_dir, 'rmse_interpolated'), formats=("png","svg"), with_pickle=True)
+            plt.close(fig)
+        else:
+            plt.show()
+
+
+# --- Programmatic API for averaging RMSE over multiple i ---
+def compute_rmse_for_i(i: int,
+                       folder: str = 'coefs_process',
+                       basis_root: str = 'data',
+                       functions_path: str = 'data/functions.wave') -> np.ndarray:
+    file_path = os.path.join(folder, f"basis_{i}.json")
+    xs, ys, _, coefs = load_basis_coofs(file_path)
+    basis = np.array(load_basis(os.path.join(basis_root, f"basis_{i}")))
+    to_restore = np.loadtxt(functions_path)
+    return build_rmse_grid(to_restore, basis, xs, ys, coefs)
+
+
+def average_rmse_over_i(i_list,
+                        folder: str = 'coefs_process',
+                        basis_root: str = 'data',
+                        functions_path: str = 'data/functions.wave',
+                        smooth_sigma: float | None = None):
+    grids = [compute_rmse_for_i(i, folder, basis_root, functions_path) for i in i_list]
+    mean_grid = np.nanmean(np.stack(grids, axis=0), axis=0)
+    smoothed = gaussian_smooth_nan(mean_grid, sigma=smooth_sigma) if smooth_sigma and smooth_sigma > 0 else None
+    return mean_grid, smoothed
 
 
 if __name__ == "__main__":

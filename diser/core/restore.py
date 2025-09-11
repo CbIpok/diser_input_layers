@@ -70,3 +70,39 @@ def pointwise_rmse_from_coefs(to_restore: np.ndarray,
     # Place values at (row=y, col=x) indices (no stride here)
     out[ys_i, xs_i] = np.sqrt(mse_vals)
     return out
+
+
+# --- Simple NaN-aware Gaussian smoothing (separable) ---
+def _gaussian_kernel_1d(sigma: float, radius: int | None = None) -> np.ndarray:
+    if sigma <= 0:
+        return np.array([1.0], dtype=np.float64)
+    if radius is None:
+        radius = int(np.ceil(3 * sigma))
+    x = np.arange(-radius, radius + 1, dtype=np.float64)
+    k = np.exp(-(x * x) / (2 * sigma * sigma))
+    k /= k.sum()
+    return k
+
+
+def _convolve1d_nan(arr: np.ndarray, kernel: np.ndarray, axis: int) -> np.ndarray:
+    arr = np.asarray(arr, dtype=np.float64)
+    mask = np.isfinite(arr).astype(np.float64)
+    arr_filled = np.where(np.isfinite(arr), arr, 0.0)
+
+    def _conv1d(v):
+        return np.convolve(v, kernel, mode='same')
+
+    out = np.apply_along_axis(_conv1d, axis, arr_filled)
+    w = np.apply_along_axis(_conv1d, axis, mask)
+    with np.errstate(invalid='ignore'):
+        out = out / w
+    out[w == 0] = np.nan
+    return out
+
+
+def gaussian_smooth_nan(arr: np.ndarray, sigma: float = 1.0, radius: int | None = None) -> np.ndarray:
+    """Gaussian smoothing for 2D array with NaN handling (separable)."""
+    k = _gaussian_kernel_1d(sigma, radius)
+    tmp = _convolve1d_nan(arr, k, axis=1)
+    out = _convolve1d_nan(tmp, k, axis=0)
+    return out

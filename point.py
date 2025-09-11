@@ -17,6 +17,7 @@ from diser.core.restore import (
     reconstruct_from_bases,
     valid_mask_from_bases,
     mse_on_valid_region,
+    gaussian_smooth_nan,
 )
 
 
@@ -146,3 +147,31 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# ---- Programmatic API for averaging over multiple i ----
+def reconstruct_mean_over_i(i_list,
+                            folder: str = 'coefs_process',
+                            basis_root: str = 'data',
+                            functions_path: str = 'data/functions.wave',
+                            point_xy=(100, 547),
+                            smooth_sigma: float | None = None):
+    """
+    Reconstruct surfaces for each i in i_list and return:
+      - mean surface over i (NaN-ignoring)
+      - optionally smoothed mean (gaussian, NaN-aware)
+    Keeps ability to inspect a specific i via existing API.
+    """
+    x_sel, y_sel = point_xy
+    Zs = []
+    to_restore = np.loadtxt(functions_path)
+    for i in i_list:
+        coefs_json = os.path.join(folder, f'basis_{i}.json')
+        basis_dir = os.path.join(basis_root, f'basis_{i}')
+        xs, ys, coefs = load_basis_coefs(coefs_json)
+        bases = load_basis_dir(basis_dir)
+        c, _ = get_coeffs_for_point(x_sel, y_sel, xs, ys, coefs)
+        Z_hat = reconstruct_from_bases(c, bases)
+        Zs.append(Z_hat)
+    mean_Z = np.nanmean(np.stack(Zs, axis=0), axis=0)
+    smoothed = gaussian_smooth_nan(mean_Z, sigma=smooth_sigma) if smooth_sigma and smooth_sigma > 0 else None
+    return mean_Z, smoothed

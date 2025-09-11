@@ -108,3 +108,25 @@ Quick Pipelines (PowerShell examples)
 
 - Headless (no GUI):
   - `$env:MPLBACKEND='Agg'; python plot_basis_maps.py --i 16 --mode both --save-dir output`
+
+CLI for new averaging functionality
+- Mean reconstruction over multiple i (point module):
+  - `python scripts/point_mean.py --i-list 4,16,25,36,49 --point 100 547 --save-mean output/mean_reconstruction.npy --save-smooth output/mean_reconstruction_smoothed.npy --smooth-sigma 2.0 --folder coefs_process --basis-root data --functions data/functions.wave --save-dir output`
+  - Outputs: `.npy` arrays and PNGs (`mean_reconstruction.png`, `mean_reconstruction_smoothed.png`) in `output`.
+
+- Mean RMSE over multiple i (plot_basis_maps module):
+  - `python scripts/rmse_mean.py --i-list 4,16,25,36,49 --rmse-out output/rmse_mean.npy --rmse-smooth-out output/rmse_mean_smoothed.npy --smooth-sigma 1.5 --folder coefs_process --basis-root data --functions data/functions.wave --save-dir output`
+  - Outputs: `.npy` arrays and PNG `rmse_mean_interpolated.png` in `output`.
+
+Plotting scripts for saved means
+- Forms (reconstruction):
+  - `python scripts/plot_point_mean.py --mean output/mean_reconstruction.npy --smooth output/mean_reconstruction_smoothed.npy --save-dir output`
+- RMSE grids:
+  - `python scripts/plot_rmse_mean.py --rmse output/rmse_mean.npy --rmse-smooth output/rmse_mean_smoothed.npy --save-dir output`
+
+Universal figure save/load (with labels/annotations)
+- Any script that saves figures now uses `diser.viz.figio.save_figure_bundle`, which writes:
+  - `.png` (raster), `.svg` (vector), and `.mplfig.pkl` (full matplotlib figure object) with the same base name.
+- You can reopen any saved figure with labels/annotations intact:
+  - `python scripts/fig_show.py output/rmse_interpolated.mplfig.pkl`
+  - Works for any figure saved via the bundle (RMSE, mean forms, etc.).

@@ -11,3 +11,8 @@ prompt.txt
 /diser/__pycache__
 /diser/io/__pycache__
 *.npy
+/diser/viz/__pycache__
+/scripts/__pycache__
+*.pkl
+*.html
+*.svg
