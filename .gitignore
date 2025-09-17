@@ -16,3 +16,4 @@ prompt.txt
 *.pkl
 *.html
 *.svg
+/output

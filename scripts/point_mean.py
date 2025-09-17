@@ -53,11 +53,33 @@ def main():
             if smoothed.shape != func.shape:
                 raise AssertionError(f"functions.wave shape {func.shape} differs from smoothed mean shape {smoothed.shape}")
             smoothed = smoothed - func
-    os.makedirs(os.path.dirname(args.save_mean) or '.', exist_ok=True)
-    np.save(args.save_mean, mean_Z)
+    # Build a suffix for filenames that encodes i-list and point
+    def _suffix_from(i_vals, pt_xy):
+        i_part = '_'.join(str(i) for i in i_vals)
+        x, y = int(pt_xy[0]), int(pt_xy[1])
+        return f"i-list-{i_part}_point-{x}_{y}"
+
+    suffix_tag = _suffix_from(i_list, args.point)
+
+    def _with_suffix(path_in: str, suffix: str) -> str:
+        base, ext = os.path.splitext(path_in)
+        return f"{base}__{suffix}{ext}"
+
+    # Save mean as .npy and additionally as .txt, both with suffix
+    save_mean_path = _with_suffix(args.save_mean, suffix_tag)
+    os.makedirs(os.path.dirname(save_mean_path) or '.', exist_ok=True)
+    np.save(save_mean_path, mean_Z)
+    # Also save as text (space-separated)
+    mean_txt_path = os.path.splitext(save_mean_path)[0] + '.txt'
+    np.savetxt(mean_txt_path, mean_Z)
+
+    # If requested, save smoothed as well (npy + txt), with suffix
     if args.save_smooth and smoothed is not None:
-        os.makedirs(os.path.dirname(args.save_smooth) or '.', exist_ok=True)
-        np.save(args.save_smooth, smoothed)
+        save_smooth_path = _with_suffix(args.save_smooth, suffix_tag)
+        os.makedirs(os.path.dirname(save_smooth_path) or '.', exist_ok=True)
+        np.save(save_smooth_path, smoothed)
+        smooth_txt_path = os.path.splitext(save_smooth_path)[0] + '.txt'
+        np.savetxt(smooth_txt_path, smoothed)
     # Decide output directory for figures
     out_dir = args.save_dir or (os.path.dirname(args.save_mean) or '.')
     os.makedirs(out_dir, exist_ok=True)
@@ -80,7 +102,8 @@ def main():
     plt.colorbar(label=cbar_label)
     plt.xlabel('X'); plt.ylabel('Y'); plt.title(f'{title_base} [{title_suffix}]')
     formats = tuple([s.strip() for s in str(args.img_formats).split(',') if s.strip()]) or ("png",)
-    save_figure_bundle(fig1, os.path.join(out_dir, base_name), formats=formats, with_pickle=True)
+    base_with_suffix = f"{base_name}__{suffix_tag}"
+    save_figure_bundle(fig1, os.path.join(out_dir, base_with_suffix), formats=formats, with_pickle=True)
     plt.close(fig1)
 
     if smoothed is not None:
@@ -95,7 +118,8 @@ def main():
             base2 = 'mean_reconstruction_smoothed_minus_functions'
         plt.colorbar(label=cbar_label2)
         plt.xlabel('X'); plt.ylabel('Y'); plt.title(f'{title2} [{title_suffix}]')
-        save_figure_bundle(fig2, os.path.join(out_dir, base2), formats=formats, with_pickle=True)
+        base2_with_suffix = f"{base2}__{suffix_tag}"
+        save_figure_bundle(fig2, os.path.join(out_dir, base2_with_suffix), formats=formats, with_pickle=True)
         plt.close(fig2)
 
 
