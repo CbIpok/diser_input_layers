@@ -24,6 +24,13 @@ def parse_args():
                    help='Comma-separated image formats to save (e.g., png or png,svg)')
     p.add_argument('--subtract-functions', action='store_true',
                    help='Subtract functions.wave from the resulting mean (and smoothed) before saving and plotting')
+    # Profiles (1D sections) of reconstruction vs original functions
+    p.add_argument('--profile-rows', default=None,
+                   help='Comma-separated Y indices to export row profiles (original vs mean)')
+    p.add_argument('--profile-cols', default=None,
+                   help='Comma-separated X indices to export column profiles (original vs mean)')
+    p.add_argument('--profiles-dir', default=None,
+                   help='Directory to save profile plots/CSV (defaults to save-dir)')
     return p.parse_args()
 
 
@@ -38,6 +45,7 @@ def main():
         point_xy=tuple(args.point),
         smooth_sigma=args.smooth_sigma,
     )
+    mean_Z_raw = mean_Z.copy()
     # Note: previously applied an edge-aware filter to mean_Z here; removed.
     # Optionally subtract functions.wave from the resulting forms
     if args.subtract_functions:
@@ -121,6 +129,74 @@ def main():
         base2_with_suffix = f"{base2}__{suffix_tag}"
         save_figure_bundle(fig2, os.path.join(out_dir, base2_with_suffix), formats=formats, with_pickle=True)
         plt.close(fig2)
+
+    # Export 1D profiles if requested (compare ORIGINAL functions vs MEAN RAW, not subtracted)
+    rows_spec = [s for s in (args.profile_rows or '').split(',') if s.strip()]
+    cols_spec = [s for s in (args.profile_cols or '').split(',') if s.strip()]
+    if rows_spec or cols_spec:
+        if str(args.functions).lower().endswith('.npy'):
+            functions_arr = np.load(args.functions)
+        else:
+            functions_arr = np.loadtxt(args.functions)
+        if functions_arr.shape != mean_Z_raw.shape:
+            raise AssertionError(f"functions.wave shape {functions_arr.shape} differs from mean shape {mean_Z_raw.shape}")
+        prof_dir = args.profiles_dir or out_dir
+        os.makedirs(prof_dir, exist_ok=True)
+
+        import csv
+        import matplotlib.pyplot as plt
+        H, W = mean_Z_raw.shape
+        # Rows
+        for rs in rows_spec:
+            try:
+                y = int(rs)
+            except ValueError:
+                continue
+            if not (0 <= y < H):
+                continue
+            x_axis = np.arange(W)
+            orig = functions_arr[y, :]
+            meanv = mean_Z_raw[y, :]
+            # CSV
+            csv_path = os.path.join(prof_dir, f"profile_row_{y}__{suffix_tag}.csv")
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                w = csv.writer(f)
+                w.writerow(['x', 'original', 'mean'])
+                for x, o, m in zip(x_axis, orig, meanv):
+                    w.writerow([int(x), float(o), float(m)])
+            # Plot
+            fig = plt.figure(figsize=(10, 4))
+            plt.plot(x_axis, orig, label='original', linewidth=1.0)
+            plt.plot(x_axis, meanv, label='mean', linewidth=1.0)
+            plt.title(f'Row {y} profiles [{suffix_tag}]')
+            plt.xlabel('x'); plt.ylabel('value'); plt.legend(); plt.tight_layout()
+            plt.savefig(os.path.join(prof_dir, f"profile_row_{y}__{suffix_tag}.png"))
+            plt.close(fig)
+        # Cols
+        for cs in cols_spec:
+            try:
+                x = int(cs)
+            except ValueError:
+                continue
+            if not (0 <= x < W):
+                continue
+            y_axis = np.arange(H)
+            orig = functions_arr[:, x]
+            meanv = mean_Z_raw[:, x]
+            csv_path = os.path.join(prof_dir, f"profile_col_{x}__{suffix_tag}.csv")
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                w = csv.writer(f)
+                w.writerow(['y', 'original', 'mean'])
+                for y, o, m in zip(y_axis, orig, meanv):
+                    w.writerow([int(y), float(o), float(m)])
+            fig = plt.figure(figsize=(6, 8))
+            plt.plot(orig, y_axis, label='original', linewidth=1.0)
+            plt.plot(meanv, y_axis, label='mean', linewidth=1.0)
+            plt.gca().invert_yaxis()
+            plt.title(f'Column {x} profiles [{suffix_tag}]')
+            plt.xlabel('value'); plt.ylabel('y'); plt.legend(); plt.tight_layout()
+            plt.savefig(os.path.join(prof_dir, f"profile_col_{x}__{suffix_tag}.png"))
+            plt.close(fig)
 
 
 if __name__ == '__main__':

@@ -124,6 +124,34 @@ Plotting scripts for saved means
 - RMSE grids:
   - `python scripts/plot_rmse_mean.py --rmse output/rmse_mean.npy --rmse-smooth output/rmse_mean_smoothed.npy --save-dir output`
 
+Research pipeline (forms, NC, adaptive fusion)
+- One‑off NC reconstruction for specific `i` (fits coeffs on max_height in NC, synthesizes full form):
+  - `python scripts/reconstruct_from_nc.py --nc-root T:\tsumami_temp_shared_folder\res\Tokai_most --i 16 --basis-root data --functions-wave data/functions.wave --save-coeffs output/nc_fit/coeffs_i16.json --save-form output/nc_fit/form_i16.npy --save-diff output/nc_fit/diff_i16.npy --save-preview output/nc_fit/preview_i16.png`
+
+- Mass local analysis on K points inside `source.json` (per‑i patches, mean+smooth baseline, adaptive fusion on patches):
+  - `python scripts/research_5000.py --i-list 16,25,36,49 --n-points 5000 --window 12 --seed 0 --out-dir output/research_5000`
+  - Output: `summary.json` with global stats, per‑i MAE, baseline (mean+σ=1.5), adaptive patch fusion (α,β), and correlation of MAE vs aprox_error.
+
+- Adaptive multi‑i reconstruction (global, full grid) driven by NC + approx_error:
+  - `python scripts/reconstruct_adaptive.py --nc-root T:\tsumami_temp_shared_folder\res\Tokai_most --basis-root data --i-list 16,25,36,49 --alpha 0.5 --beta 1.0 --smooth-sigma 1.5 --save output/adaptive/reconstruction.npy --save-png output/adaptive/reconstruction.png --save-json output/adaptive/summary.json`
+  - If `--i-list` omitted, the script uses all i present in both NC root and `data/basis_i`.
+
+- Compare adaptive vs baseline (mean{16,25,36,49}+σ=1.5) on the same K points:
+  - `python scripts/compare_methods.py --nc-root T:\tsumami_temp_shared_folder\res\Tokai_most --basis-root data --i-list 16,25,36,49 --smooth-sigma 1.5 --adaptive-form output/adaptive/reconstruction.npy --functions data/functions.wave --n-points 5000 --seed 0 --force-first 2000,1400 --out-dir output/compare_adaptive`
+  - Output: `summary.json` with MAE/bias quantiles and fraction of points improved by adaptive method.
+
+Profiles and GUI tools
+- Point‑mean with 1D profiles and signed filenames:
+  - `python scripts/point_mean.py --i-list 16,25,36,49 --point 500 350 --save-mean output/mean.npy --save-dir output --profile-rows 1300,1400 --profile-cols 1900,2000`
+  - Saves `profile_row_*.csv/.png` and `profile_col_*.csv/.png`. Arrays/images carry suffix `__i-list-*_point-X_Y`.
+
+- View and diff `.npy` height maps (drag&drop):
+  - `python scripts/plot_npy_gui.py` — два слота A/B и «Показать разницу (B − A)».
+
+NC utilities
+- Extract `max_height` 2D array from NC to `.npy`:
+  - `python scripts/extract_max_height.py extract --nc data/restored_distribution/functions.nc --var max_height --save-npy output/max_height.npy`
+
 Universal figure save/load (with labels/annotations)
 - Any script that saves figures now uses `diser.viz.figio.save_figure_bundle`, which writes:
   - `.png` (raster), `.svg` (vector), and `.mplfig.pkl` (full matplotlib figure object) with the same base name.
