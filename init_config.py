@@ -1,22 +1,20 @@
 import os
 import json
 
+
 def find_unique_file(directory):
-    """
-    Ищет единственный файл в указанной директории.
-    Если файлов нет или их больше одного — бросит исключение.
-    """
+    """Return the single file in a directory; raise if the count differs from one."""
     files = [f for f in os.listdir(directory)
              if os.path.isfile(os.path.join(directory, f))]
     if len(files) != 1:
-        raise RuntimeError(f"Ожидался ровно один файл в {directory}, найдено: {len(files)}")
+        raise RuntimeError(f"Expected exactly one file in {directory}, found {len(files)}")
     return os.path.join(directory, files[0])
 
+
 def get_size_from_most(path):
-    """
-    Читает файл MOST и извлекает из первой непустой строки два целых числа (x, y).
-    При необходимости скорректировать парсинг под конкретный формат.
-    """
+    """Extract grid dimensions (x, y) from a MOST bathymetry file.
+
+    Reads until it finds a line with at least two integer tokens and returns them."""
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             parts = line.strip().split()
@@ -27,13 +25,13 @@ def get_size_from_most(path):
                     return x, y
                 except ValueError:
                     continue
-    raise RuntimeError(f"Не удалось извлечь размеры из файла {path}")
+    raise RuntimeError(f"Failed to detect grid size in MOST file {path}")
+
 
 def create_config(output_dir="data"):
-    """
-    Находит файл MOST в data/bath, парсит из него x, y и
-    создает config.json в папке data.
-    """
+    """Create config.json by scanning for a MOST bathymetry file in data/bath.
+
+    Computes the grid size from the file and stores the bathymetry path in the output directory."""
     bath_dir = os.path.join(output_dir, "bath")
     os.makedirs(output_dir, exist_ok=True)
 
@@ -51,6 +49,6 @@ def create_config(output_dir="data"):
 
     print(f"Config saved to {config_path}")
 
+
 if __name__ == "__main__":
     create_config()
-

@@ -1,11 +1,11 @@
-import matplotlib.pyplot as plt
+﻿import matplotlib.pyplot as plt
 import numpy as np
 
 from area import CosineWaveArea
 
 
 class Plotter:
-    """Класс для создания и настройки графика"""
+    """Utility for plotting bathymetry grid with configured areas."""
     def __init__(self, grid: np.ndarray):
         self.grid = grid
         self.ny, self.nx = grid.shape

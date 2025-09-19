@@ -1,4 +1,4 @@
-"""Plot 2D height maps for approximation error and coefficients.
+﻿"""Plot 2D height maps for approximation error and coefficients.
 
 Reads coefs_process/basis_{i}.json and can:
 - compute RMSE grid (heavy computation) and optionally save to .npy
@@ -54,22 +54,22 @@ def build_rmse_grid(to_restore, bases, xs_arr, ys_arr, coef_arrays, dtype=np.flo
 
     k, Hb, Wb = bases.shape
     Hg, Wg = grid.shape
-    assert (Hb, Wb) == (Hg, Wg), "bases и grid должны совпадать по размеру"
-    assert to_restore.shape == (Hg, Wg), "to_restore должен совпадать по размеру с grid"
+    assert (Hb, Wb) == (Hg, Wg), "bases and grid must have the same shape"
+    assert to_restore.shape == (Hg, Wg), "to_restore must match grid shape"
 
     stride = int(cfg.get('save_interval', 1))
-    # 1) Считаем RMSE в точках как есть (без stride) и размещаем во временной решётке
+    # 1) Compute RMSE at the original sample coordinates (before applying stride) and place it in a temporary grid
     xs_un = np.asarray(xs_arr, dtype=int)
     ys_un = np.asarray(ys_arr, dtype=int)
     rmse_un = pointwise_rmse_from_coefs(to_restore, bases, xs_un, ys_un, coef_arrays, dtype=dtype)
 
-    # 2) Перекладываем значения в итоговую решётку по координатам с учётом stride
+    # 2) Scatter the values into the final grid using stride-scaled coordinates
     out = np.full_like(rmse_un, np.nan)
     xi = (xs_un * stride).astype(int)
     yi = (ys_un * stride).astype(int)
-    # берём значения из не-страйдовой решётки в исходных координатах
+    # Extract values from the intermediate grid at original coordinates
     vals = rmse_un[ys_un, xs_un]
-    # и кладём их в страйдовые координаты
+    # Store them at stride-scaled coordinates
     valid = np.isfinite(vals)
     out[yi[valid], xi[valid]] = vals[valid]
     return out
@@ -335,3 +335,4 @@ def average_aprox_error_over_i(i_list,
 
 if __name__ == "__main__":
     main()
+

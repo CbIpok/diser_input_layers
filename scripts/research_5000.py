@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 import argparse
 import json
 import os
@@ -102,7 +102,7 @@ def main():
     H, W = T.shape
     save_int = _save_interval()
 
-    # Source polygon mask (as истинная область ненулевой формы)
+    # Source polygon mask (approximate source zone mask)
     union = _load_source_mask(W, H, area_path='data/areas/source.json')
 
     if args.force_first:
@@ -121,7 +121,7 @@ def main():
     orig_patches = np.empty((N, P), dtype=np.float32)
     mean_sum = np.zeros((N, P), dtype=np.float32)
 
-    # Also collect per-i MAE и approx_error per point (summary only), и сами патчи
+    # Also collect per-i MAE / approx_error per point (summary only) and store the patches themselves
     per_i_mae = {i: np.zeros(N, dtype=np.float32) for i in i_list}
     per_i_ae = {i: np.zeros(N, dtype=np.float32) for i in i_list}
     per_i_patch: dict[int, np.ndarray] = {i: np.zeros((N, P), dtype=np.float32) for i in i_list}
@@ -205,7 +205,7 @@ def main():
     diffB = mean_patch_sm - orig_patches
     mae_baseS = np.mean(np.abs(diffB), axis=1)
 
-    # Adaptive fusion на патчах, используя per-point approx_error и локальный градиент mean_patch
+    # Adaptive fusion on patches using per-point approx_error and the local gradient of mean_patch
     # Precompute per-point gradient magnitude maps for mean_patch
     gmaps = np.zeros((N, side, side), dtype=np.float32)
     for pi in range(N):
@@ -236,7 +236,7 @@ def main():
     adapt_patch = (num / np.maximum(den, eps)).astype(np.float32)
     mae_adapt = np.mean(np.abs(adapt_patch - orig_patches), axis=1).astype(np.float32)
 
-    # Save a compact summary JSON (без огромного CSV)
+    # Save a compact summary JSON (avoid massive CSV)
     summary = {
         'i_list': i_list,
         'n_points': N,
@@ -309,3 +309,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
