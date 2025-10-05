@@ -7,7 +7,7 @@ import os
 import numpy as np
 
 from diser.io.basis import load_basis_dir, load_functions_wave
-from diser.io.coeffs import read_coef_json
+from diser.io.coeffs import read_coef_json, resolve_coeffs_dir
 from diser.core.restore import pointwise_rmse_from_coefs
 from diser.viz.maps import plot_triangulated, plot_grid_scalar
 
@@ -24,7 +24,8 @@ def parse_args():
 
 def main():
     args = parse_args()
-    coef_path = os.path.join(args.folder, f"basis_{args.i}.json")
+    coefs_dir = resolve_coeffs_dir(args.folder, args.functions)
+    coef_path = coefs_dir / f"basis_{args.i}.json"
     basis_path = os.path.join(args.basis_root, f"basis_{args.i}")
 
     samples = read_coef_json(coef_path)

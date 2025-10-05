@@ -12,7 +12,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from diser.io.basis import load_basis_dir
-from diser.io.coeffs import read_coef_json
+from diser.io.coeffs import read_coef_json, resolve_coeffs_dir
 from diser.core.restore import gaussian_smooth_nan
 from matplotlib.path import Path as MplPath
 
@@ -112,6 +112,8 @@ def main():
         force = None
     pts = _sample_points_from_union(union, max(1, args.n_points), seed=args.seed, force_first=force)
 
+    coefs_dir = resolve_coeffs_dir(args.folder, args.functions)
+
     # Prepare per-point storage for original patches and mean reconstruction sum
     half = int(args.window)
     side = 2 * half + 1
@@ -142,7 +144,7 @@ def main():
     for i in i_list:
         # Load bases (float32) and coefs
         B = load_basis_dir(os.path.join(args.basis_root, f'basis_{i}')).astype(np.float32, copy=False)
-        samples = read_coef_json(Path(args.folder) / f'basis_{i}.json')
+        samples = read_coef_json(coefs_dir / f'basis_{i}.json')
         xs = np.asarray(samples.xs, dtype=float)
         ys = np.asarray(samples.ys, dtype=float)
         idx_map = _build_index(xs, ys)

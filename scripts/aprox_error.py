@@ -13,6 +13,7 @@ def parse_args():
     p = argparse.ArgumentParser(description='Mean approx_error grid over multiple i (optionally smoothed)')
     p.add_argument('--i-list', required=True, help='Comma-separated list of i values, e.g. 4,16,25')
     p.add_argument('--folder', default='coefs_process', help='Folder with basis_{i}.json')
+    p.add_argument('--functions', default='data/functions.wave', help='Path to functions file to match basis coefficients')
     p.add_argument('--smooth-sigma', type=float, default=None, help='Gaussian sigma for smoothing (optional)')
     p.add_argument('--ae-out', required=True, help='Output .npy for mean approx_error grid')
     p.add_argument('--ae-smooth-out', default=None, help='Output .npy for smoothed mean approx_error grid (optional)')
@@ -26,6 +27,7 @@ def main():
     mean_grid, smoothed = average_aprox_error_over_i(
         i_list,
         folder=args.folder,
+        functions_path=args.functions,
         smooth_sigma=args.smooth_sigma,
     )
     os.makedirs(os.path.dirname(args.ae_out) or '.', exist_ok=True)

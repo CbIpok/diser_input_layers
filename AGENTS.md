@@ -8,6 +8,7 @@ Prerequisites
 - Python 3.10+ with numpy, matplotlib, xarray. netCDF4 is optional (xarray works without it with default engines).
 - Large data files are expected under `data/` and an external NC root may be mounted (e.g., `T:\tsumami_temp_shared_folder\res\Tokai_most`).
 - Be mindful of `data/config.json` and its `save_interval` (commonly 4). JSON coordinates in `coefs_process/basis_{i}.json` are in the decimated grid and must be mapped back by `* save_interval`.
+- Coefficient JSONs are now grouped by functions datasets, e.g. `coefs_process/functions_pow1` pairs with `functions_pow1.wave`. Tooling resolves the proper folder from `--functions`, but you can still pass an explicit subdirectory via `--folder`.
 - Array indexing is `[y, x]` (rows, cols).
 
 Key scripts (quick index)
@@ -48,6 +49,9 @@ Compare methods (adaptive vs baseline)
 - Output: `summary.json` with MAE/bias quantiles and fraction of improved points.
 
 Profiles & visualization
+- Mean RMSE over i (error grids):
+  - `python scripts/rmse_mean.py --i-list 16,25,36,49 --rmse-out output/rmse_mean.npy --smooth-sigma 1.5 --folder coefs_process --basis-root data --functions data/functions.wave --save-dir output`
+  - Outputs both raw (`output/rmse_mean.npy`) and smoothed (`output/rmse_mean__smooth_sigma1_5.npy`) error grids with matching figures.
 - Mean over i with 1D profiles:
   - `python scripts/point_mean.py --i-list 16,25,36,49 --point 500 350 --save-mean output/mean.npy --save-dir output --profile-rows 1300,1400 --profile-cols 1900,2000`
 - Drag&drop `.npy` viewer for A/B and B − A:

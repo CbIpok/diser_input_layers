@@ -11,6 +11,7 @@ but calc_mse now delegates to a compute helper.
 import argparse
 import json
 import os
+from pathlib import Path
 from typing import List
 
 import matplotlib.pyplot as plt
@@ -19,7 +20,7 @@ from matplotlib.path import Path
 import numpy as np
 
 from loader import load_bath_grid
-from diser.io.coeffs import read_coef_json
+from diser.io.coeffs import read_coef_json, resolve_coeffs_dir
 from diser.io.basis import load_basis_dir
 from diser.core.restore import pointwise_rmse_from_coefs, pointwise_mean_error_from_coefs, gaussian_smooth_nan
 from diser.viz.figio import save_figure_bundle
@@ -198,6 +199,8 @@ def main():
     )
     parser.add_argument("--folder", default="coefs_process",
                         help="Directory containing basis_{i}.json")
+    parser.add_argument("--functions", default="data/functions.wave",
+                        help="Path to functions file associated with the coefficients")
     parser.add_argument("--i", type=int, default=4,
                         help="Number of coefficients (file basis_{i}.json)")
     parser.add_argument("--save-dir", default=None,
@@ -210,11 +213,15 @@ def main():
                         help="Path to load RMSE grid (.npy) in plot mode")
     args = parser.parse_args()
 
-    file_path = os.path.join(args.folder, f"basis_{args.i}.json")
+    coefs_dir = resolve_coeffs_dir(args.folder, args.functions)
+    file_path = coefs_dir / f"basis_{args.i}.json"
     xs, ys, approx_err, coefs = load_basis_coofs(file_path)
 
     basis = np.array(load_basis(f"data/basis_{args.i}"))
-    to_restore = np.loadtxt("data/functions.wave")
+    if str(args.functions).lower().endswith('.npy'):
+        to_restore = np.load(args.functions)
+    else:
+        to_restore = np.loadtxt(args.functions)
 
     if args.mode in ("compute", "both"):
         rmse = build_rmse_grid(to_restore, basis, xs, ys, coefs)
@@ -257,11 +264,24 @@ def main():
 def compute_rmse_for_i(i: int,
                        folder: str = 'coefs_process',
                        basis_root: str = 'data',
-                       functions_path: str = 'data/functions.wave') -> np.ndarray:
-    file_path = os.path.join(folder, f"basis_{i}.json")
+                       functions_path: str = 'data/functions.wave',
+                       smooth_sigma: float | None = None) -> np.ndarray:
+    coefs_dir = resolve_coeffs_dir(folder, functions_path)
+    file_path = coefs_dir / f"basis_{i}.json"
     xs, ys, _, coefs = load_basis_coofs(file_path)
     basis = np.array(load_basis(os.path.join(basis_root, f"basis_{i}")))
-    to_restore = np.loadtxt(functions_path)
+    if smooth_sigma and smooth_sigma > 0:
+        basis_smoothed = []
+        for plane in basis:
+            mask_valid = np.isfinite(plane)
+            sm = gaussian_smooth_nan(plane, sigma=float(smooth_sigma))
+            sm[~mask_valid] = np.nan
+            basis_smoothed.append(sm)
+        basis = np.stack(basis_smoothed, axis=0)
+    if str(functions_path).lower().endswith('.npy'):
+        to_restore = np.load(functions_path)
+    else:
+        to_restore = np.loadtxt(functions_path)
     return build_rmse_grid(to_restore, basis, xs, ys, coefs)
 
 
@@ -269,10 +289,14 @@ def compute_mean_error_for_i(i: int,
                              folder: str = 'coefs_process',
                              basis_root: str = 'data',
                              functions_path: str = 'data/functions.wave') -> np.ndarray:
-    file_path = os.path.join(folder, f"basis_{i}.json")
+    coefs_dir = resolve_coeffs_dir(folder, functions_path)
+    file_path = coefs_dir / f"basis_{i}.json"
     xs, ys, _, coefs = load_basis_coofs(file_path)
     basis = np.array(load_basis(os.path.join(basis_root, f"basis_{i}")))
-    to_restore = np.loadtxt(functions_path)
+    if str(functions_path).lower().endswith('.npy'):
+        to_restore = np.load(functions_path)
+    else:
+        to_restore = np.loadtxt(functions_path)
     return build_mean_error_grid(to_restore, basis, xs, ys, coefs)
 
 
@@ -281,10 +305,14 @@ def average_rmse_over_i(i_list,
                         basis_root: str = 'data',
                         functions_path: str = 'data/functions.wave',
                         smooth_sigma: float | None = None):
-    grids = [compute_rmse_for_i(i, folder, basis_root, functions_path) for i in i_list]
-    mean_grid = np.nanmean(np.stack(grids, axis=0), axis=0)
-    smoothed = gaussian_smooth_nan(mean_grid, sigma=smooth_sigma) if smooth_sigma and smooth_sigma > 0 else None
-    return mean_grid, smoothed
+    grids = [compute_rmse_for_i(i, folder, basis_root, functions_path, smooth_sigma=smooth_sigma) for i in i_list]
+    stack = np.stack(grids, axis=0)
+    finite_mask = np.isfinite(stack)
+    sum_vals = np.nansum(stack, axis=0)
+    counts = finite_mask.sum(axis=0)
+    mean_grid = np.full_like(sum_vals, np.nan, dtype=np.float64)
+    np.divide(sum_vals, counts, out=mean_grid, where=counts > 0)
+    return mean_grid, None
 
 
 def average_mean_error_over_i(i_list,
@@ -299,8 +327,10 @@ def average_mean_error_over_i(i_list,
 
 
 def compute_aprox_error_for_i(i: int,
-                              folder: str = 'coefs_process') -> np.ndarray:
-    file_path = os.path.join(folder, f"basis_{i}.json")
+                              folder: str = 'coefs_process',
+                              functions_path: str | Path | None = 'data/functions.wave') -> np.ndarray:
+    coefs_dir = resolve_coeffs_dir(folder, functions_path)
+    file_path = coefs_dir / f"basis_{i}.json"
     samples = read_coef_json(file_path)
     xs = np.asarray(samples.xs, dtype=int)
     ys = np.asarray(samples.ys, dtype=int)
@@ -326,8 +356,9 @@ def compute_aprox_error_for_i(i: int,
 
 def average_aprox_error_over_i(i_list,
                                folder: str = 'coefs_process',
+                               functions_path: str = 'data/functions.wave',
                                smooth_sigma: float | None = None):
-    grids = [compute_aprox_error_for_i(i, folder) for i in i_list]
+    grids = [compute_aprox_error_for_i(i, folder, functions_path) for i in i_list]
     mean_grid = np.nanmean(np.stack(grids, axis=0), axis=0)
     smoothed = gaussian_smooth_nan(mean_grid, sigma=smooth_sigma) if smooth_sigma and smooth_sigma > 0 else None
     return mean_grid, smoothed

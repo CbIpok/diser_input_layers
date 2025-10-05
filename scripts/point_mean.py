@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 import argparse
 import os
+import sys
 import numpy as np
+
+# Ensure project root on sys.path when executed as a script
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 from point import reconstruct_mean_over_i
 from diser.viz.figio import save_figure_bundle
 # Edge-aware post-filtering removed per request; keep pure mean output

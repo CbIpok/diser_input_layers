@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from matplotlib.patches import Patch
 
-from diser.io.coeffs import read_coef_json
+from diser.io.coeffs import read_coef_json, resolve_coeffs_dir
 from diser.io.basis import load_basis_dir
 from diser.core.restore import (
     reconstruct_from_bases,
@@ -99,7 +99,8 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args = parse_args()
-    coefs_json = os.path.join(args.folder, f"basis_{args.i}.json")
+    coefs_dir = resolve_coeffs_dir(args.folder, args.functions)
+    coefs_json = coefs_dir / f"basis_{args.i}.json"
     basis_dir = os.path.join(args.basis_root, f"basis_{args.i}")
 
     print('Input paths:')
@@ -109,7 +110,10 @@ def main():
 
     xs, ys, coefs = load_basis_coefs(coefs_json)
     bases = load_basis_dir(basis_dir)
-    to_restore = np.loadtxt(args.functions)
+    if str(args.functions).lower().endswith('.npy'):
+        to_restore = np.load(args.functions)
+    else:
+        to_restore = np.loadtxt(args.functions)
 
     if to_restore.ndim != 2 or bases.ndim != 3:
         raise ValueError('Unexpected shapes: to_restore -> (H, W), bases -> (k, H, W)')
@@ -161,8 +165,9 @@ def reconstruct_mean_over_i(i_list,
     """
     x_sel, y_sel = point_xy
     Zs = []
+    coefs_dir = resolve_coeffs_dir(folder, functions_path)
     for i in i_list:
-        coefs_json = os.path.join(folder, f'basis_{i}.json')
+        coefs_json = coefs_dir / f'basis_{i}.json'
         basis_dir = os.path.join(basis_root, f'basis_{i}')
         xs, ys, coefs = load_basis_coefs(coefs_json)
         bases = load_basis_dir(basis_dir)

@@ -54,21 +54,20 @@ def save_functions(config_path: str, out_path: str, power_override: float | None
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate functions.wave by compositing cosine areas onto the simulation grid."
+        description='Generate functions.wave by compositing cosine areas onto the simulation grid.'
     )
     parser.add_argument(
         '-c', '--config', default='data/config.json',
-        '-c', '--config', default='data/config.json',
-        help="Path to config.json"
+        help='Path to config.json'
+    )
     parser.add_argument(
         '-o', '--output', default='data/functions.wave',
-        '-o', '--output', default='data/functions.wave',
-        help="Output path for the generated text file"
+        help='Output path for the generated text file'
+    )
     parser.add_argument(
         '--power', type=float, default=None,
         help='Override cosine power exponent for CosineWaveArea (e.g., 2.0 sharper, 0.5 smoother)'
     )
-
 
     args = parser.parse_args()
     save_functions(args.config, args.output, power_override=args.power)
@@ -76,5 +75,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

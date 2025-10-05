@@ -53,7 +53,10 @@ def save_basis_masks(masks: Iterable[np.ndarray], out_dir: str | Path) -> None:
 
 
 def load_functions_wave(path: str | Path) -> np.ndarray:
-    return np.loadtxt(path)
+    p = Path(path)
+    if p.suffix.lower() == '.npy':
+        return np.load(p)
+    return np.loadtxt(p)
 
 
 def save_functions_wave(arr: np.ndarray, path: str | Path) -> None:

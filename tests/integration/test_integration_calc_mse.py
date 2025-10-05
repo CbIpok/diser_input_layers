@@ -4,17 +4,19 @@ import unittest
 import numpy as np
 
 from plot_basis_maps import load_basis_coofs, load_basis, calc_mse
+from diser.io.coeffs import resolve_coeffs_dir
 
 
 class TestIntegrationCalcMSE(unittest.TestCase):
     def test_calc_mse_real_data_slice(self):
         # Use i=16 because both data/basis_16 and coefs_process/basis_16.json exist
         i = 16
-        coefs_json = os.path.join('coefs_process', f'basis_{i}.json')
+        coefs_dir = resolve_coeffs_dir('coefs_process', 'data/functions.wave')
+        coefs_json = coefs_dir / f'basis_{i}.json'
         basis_dir = os.path.join('data', f'basis_{i}')
 
         # Sanity check presence
-        self.assertTrue(os.path.exists(coefs_json))
+        self.assertTrue(coefs_json.exists())
         self.assertTrue(os.path.isdir(basis_dir))
         self.assertTrue(os.path.exists('data/functions.wave'))
         self.assertTrue(os.path.exists('data/config.json'))

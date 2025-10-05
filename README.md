@@ -16,6 +16,7 @@ Config and Data
   - `save_interval` (int, optional): spacing of saved sample coordinates in `coefs_process/basis_{i}.json`.
     - Only affects where to PLACE values from the JSON (rendering), not the underlying computations.
     - Example: if `save_interval=4`, values from `(x, y)` in JSON must be written into the full grid at `[y*4, x*4]`.
+  - Coefficient JSON directories may be split per functions dataset (e.g., `coefs_process/functions_pow1`). Scripts automatically resolve the matching folder based on `--functions`, but you can still point `--folder` to a specific subdirectory if needed.
 - Areas (polygons) in `data/areas/*.json` (e.g., `source.json`, `mariogramm.json`).
 
 Files and Formats
@@ -115,8 +116,8 @@ CLI for new averaging functionality
   - Outputs: `.npy` arrays and PNGs (`mean_reconstruction.png`, `mean_reconstruction_smoothed.png`) in `output`.
 
 - Mean RMSE over multiple i (plot_basis_maps module):
-  - `python scripts/rmse_mean.py --i-list 4,16,25,36,49 --rmse-out output/rmse_mean.npy --rmse-smooth-out output/rmse_mean_smoothed.npy --smooth-sigma 1.5 --folder coefs_process --basis-root data --functions data/functions.wave --save-dir output`
-  - Outputs: `.npy` arrays and PNG `rmse_mean_interpolated.png` in `output`.
+  - `python scripts/rmse_mean.py --i-list 4,16,25,36,49 --rmse-out output/rmse_mean.npy --smooth-sigma 1.5 --folder coefs_process --basis-root data --functions data/functions.wave --save-dir output`
+  - Saves raw grid to `output/rmse_mean.npy` and the smoothed-error grid to `output/rmse_mean__smooth_sigma1_5.npy` (plus PNG/SVG/MPL bundles for each). `--smooth-sigma` controls the pre-smoothing of reconstructed forms before RMSE.
 
 Plotting scripts for saved means
 - Forms (reconstruction):

@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from diser.io.basis import load_basis_dir
 from diser.core.restore import gaussian_smooth_nan
-from diser.io.coeffs import read_coef_json
+from diser.io.coeffs import read_coef_json, resolve_coeffs_dir
 
 
 def _ensure_parent(path: str | os.PathLike) -> None:
@@ -67,8 +67,8 @@ def _save_interval() -> int:
     return int(cfg.get('save_interval', 4))
 
 
-def _build_errmap_from_json(i: int, H: int, W: int, folder: str = 'coefs_process') -> np.ndarray:
-    path = Path(folder) / f'basis_{i}.json'
+def _build_errmap_from_json(i: int, H: int, W: int, coefs_dir: str | Path) -> np.ndarray:
+    path = Path(coefs_dir) / f'basis_{i}.json'
     samples = read_coef_json(path)
     xs = np.asarray(samples.xs, dtype=int)
     ys = np.asarray(samples.ys, dtype=int)
@@ -125,6 +125,8 @@ def parse_args():
     p = argparse.ArgumentParser(description='Adaptive multi-i reconstruction from NC + approx_error-driven fusion')
     p.add_argument('--nc-root', required=True, help='Folder with functions.nc and basis_{i}/basis_*.nc')
     p.add_argument('--basis-root', default='data', help='Root with data/basis_{i}')
+    p.add_argument('--folder', default='coefs_process', help='Root with coefficient JSON files (supports subfolders per functions file)')
+    p.add_argument('--functions', default='data/functions.wave', help='Functions reference used to pick coefficient set')
     p.add_argument('--i-list', default=None, help='Comma-separated i values; if omitted, use all with both NC and data/basis_i available')
     p.add_argument('--alpha', type=float, default=0.5, help='Weight exponent for i (scale preference)')
     p.add_argument('--beta', type=float, default=1.0, help='Weight exponent for approx_error penalty')
@@ -160,6 +162,8 @@ def main():
     if not i_list:
         raise SystemExit('No matching i found between NC and data basis dirs')
 
+    coefs_dir = resolve_coeffs_dir(args.folder, args.functions)
+
     # Fit coeffs from NC and reconstruct per i
     forms: Dict[int, np.ndarray] = {}
     errmaps: Dict[int, np.ndarray] = {}
@@ -169,7 +173,7 @@ def main():
         coeffs[i] = c
         Z = _reconstruct_form_from_basis(i, args.basis_root, c)
         forms[i] = Z
-        errmaps[i] = _build_errmap_from_json(i, Z.shape[0], Z.shape[1])
+        errmaps[i] = _build_errmap_from_json(i, Z.shape[0], Z.shape[1], coefs_dir)
 
     # Compute gradient magnitude of coarse mean to identify edges
     Zmean = np.mean(np.stack([forms[i] for i in i_list], axis=0), axis=0)

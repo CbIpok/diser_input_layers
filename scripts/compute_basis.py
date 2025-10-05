@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 import json
 from pathlib import Path
 
 import numpy as np
+
+# Ensure project root on sys.path when executed as a script
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from diser.core.builder import build_rect_grid_masks
 from diser.io.basis import save_basis_masks

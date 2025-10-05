@@ -13,7 +13,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from diser.io.basis import load_basis_dir
-from diser.io.coeffs import read_coef_json
+from diser.io.coeffs import read_coef_json, resolve_coeffs_dir
 from diser.core.restore import reconstruct_from_bases
 from plot_basis_maps import average_rmse_over_i, average_mean_error_over_i
 
@@ -25,7 +25,7 @@ class CoefSet:
     coefs: List[np.ndarray]  # list of k arrays (M,)
 
 
-def _detect_i_from_coefs(folder: str) -> List[int]:
+def _detect_i_from_coefs(folder: str | Path) -> List[int]:
     p = Path(folder)
     vals = []
     for f in p.glob('basis_*.json'):
@@ -37,7 +37,7 @@ def _detect_i_from_coefs(folder: str) -> List[int]:
     return sorted(set(vals))
 
 
-def _load_coefs(folder: str, i: int) -> CoefSet:
+def _load_coefs(folder: str | Path, i: int) -> CoefSet:
     path = Path(folder) / f"basis_{i}.json"
     samples = read_coef_json(path)
     return CoefSet(xs=np.asarray(samples.xs, dtype=float),
@@ -126,11 +126,13 @@ def main():
     func = np.load(args.functions) if str(args.functions).lower().endswith('.npy') else np.loadtxt(args.functions)
     H, W = func.shape
 
+    coefs_dir = resolve_coeffs_dir(args.folder, args.functions)
+
     # Resolve i lists
     if args.i_all:
         i_all = [int(s) for s in args.i_all.split(',') if s.strip()]
     else:
-        i_all = _detect_i_from_coefs(args.folder)
+        i_all = _detect_i_from_coefs(coefs_dir)
     if not i_all:
         raise SystemExit('No i found in coefs_process')
     group_sets = []
@@ -147,12 +149,12 @@ def main():
         if args.rmse_in and Path(args.rmse_in).exists():
             metric = np.load(args.rmse_in)
         else:
-            metric, _ = average_rmse_over_i(select_i_list, folder=args.folder, basis_root=args.basis_root, functions_path=args.functions, smooth_sigma=None)
+            metric, _ = average_rmse_over_i(select_i_list, folder=coefs_dir, basis_root=args.basis_root, functions_path=args.functions, smooth_sigma=None)
     else:
         if args.mean_in and Path(args.mean_in).exists():
             metric = np.load(args.mean_in)
         else:
-            metric, _ = average_mean_error_over_i(select_i_list, folder=args.folder, basis_root=args.basis_root, functions_path=args.functions, smooth_sigma=None)
+            metric, _ = average_mean_error_over_i(select_i_list, folder=coefs_dir, basis_root=args.basis_root, functions_path=args.functions, smooth_sigma=None)
 
     finite = np.isfinite(metric)
     if args.select_within_support:
@@ -217,7 +219,7 @@ def main():
         for i in i_all:
             # load coefs/bases if needed
             if i not in coefs_cache:
-                coefs_cache[i] = _load_coefs(args.folder, i)
+                coefs_cache[i] = _load_coefs(coefs_dir, i)
             if i not in bases_cache:
                 bases_cache[i] = load_basis_dir(os.path.join(args.basis_root, f'basis_{i}'))
 

@@ -2,6 +2,7 @@ import os
 import unittest
 import numpy as np
 
+from diser.io.coeffs import resolve_coeffs_dir
 from point import (
     load_basis_coefs,
     load_basis_dir,
@@ -15,10 +16,11 @@ from point import (
 class TestIntegrationPointPipeline(unittest.TestCase):
     def test_point_reconstruction_mse_nonnegative(self):
         i = 16
-        coefs_json = os.path.join('coefs_process', f'basis_{i}.json')
+        coefs_dir = resolve_coeffs_dir('coefs_process', 'data/functions.wave')
+        coefs_json = coefs_dir / f'basis_{i}.json'
         basis_dir = os.path.join('data', f'basis_{i}')
 
-        self.assertTrue(os.path.exists(coefs_json))
+        self.assertTrue(coefs_json.exists())
         self.assertTrue(os.path.isdir(basis_dir))
         self.assertTrue(os.path.exists('data/functions.wave'))
 

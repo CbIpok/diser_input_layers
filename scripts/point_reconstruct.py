@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 
 from point import load_basis_coefs
+from diser.io.coeffs import resolve_coeffs_dir
 from diser.io.basis import load_basis_dir
 from diser.core.restore import reconstruct_from_bases
 from diser.viz.figio import save_figure_bundle
@@ -26,7 +27,8 @@ def parse_args():
 
 def main():
     args = parse_args()
-    coefs_json = os.path.join(args.folder, f'basis_{args.i}.json')
+    coefs_dir = resolve_coeffs_dir(args.folder, args.functions)
+    coefs_json = coefs_dir / f'basis_{args.i}.json'
     basis_dir = os.path.join(args.basis_root, f'basis_{args.i}')
 
     xs, ys, coefs = load_basis_coefs(coefs_json)

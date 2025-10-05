@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
+
+# Ensure project root on sys.path when executed as a script
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from save_subduction import save_functions
 
