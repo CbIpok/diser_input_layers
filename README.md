@@ -116,8 +116,8 @@ CLI for new averaging functionality
   - Outputs: `.npy` arrays and PNGs (`mean_reconstruction.png`, `mean_reconstruction_smoothed.png`) in `output`.
 
 - Mean RMSE over multiple i (plot_basis_maps module):
-  - `python scripts/rmse_mean.py --i-list 4,16,25,36,49 --rmse-out output/rmse_mean.npy --smooth-sigma 1.5 --folder coefs_process --basis-root data --functions data/functions.wave --save-dir output`
-  - Saves raw grid to `output/rmse_mean.npy` and the smoothed-error grid to `output/rmse_mean__smooth_sigma1_5.npy` (plus PNG/SVG/MPL bundles for each). `--smooth-sigma` controls the pre-smoothing of reconstructed forms before RMSE.
+  - `python scripts/rmse_mean.py --i-list 4,16,25,36,49 --smooth-sigma 1.5 --folder coefs_process --basis-root data --functions data/functions.wave --out-dir output/rmse_mean`
+  - Writes raw (`output/rmse_mean/rmse_mean__i_4_16_25_36_49__func_functions__recon_sigma_none.npy`) and smoothed (`...__recon_sigma_1_5.npy`) grids plus matching PNG/SVG/MPL figures. `--smooth-sigma` controls the pre-smoothing of reconstructed forms before RMSE.
 
 Plotting scripts for saved means
 - Forms (reconstruction):

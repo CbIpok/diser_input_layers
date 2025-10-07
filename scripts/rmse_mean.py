@@ -4,14 +4,72 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
+from typing import List
+
 import numpy as np
 
 # Ensure project root is on sys.path when running as a script
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from plot_basis_maps import average_rmse_over_i
-from diser.core.restore import gaussian_smooth_nan
 from diser.viz.figio import save_figure_bundle
+
+
+def _sanitize_tag(value: str) -> str:
+    return value.replace('.', '_')
+
+
+def _build_base_name(i_list: List[int], functions_path: str) -> str:
+    i_tag = '_'.join(str(i) for i in i_list)
+    func_tag = _sanitize_tag(Path(functions_path).stem)
+    return f"rmse_mean__i_{i_tag}__func_{func_tag}"
+
+
+def _format_sigma_tag(sigma: float | None) -> str:
+    if sigma is None or sigma == 0:
+        return 'none'
+    return _sanitize_tag(str(sigma))
+
+
+def _save_grid(grid: np.ndarray,
+               out_path: Path,
+               title_suffix: str,
+               fig_dir: Path) -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    np.save(out_path, grid)
+
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
+
+    finite_mask = np.isfinite(grid)
+    finite_points = int(np.count_nonzero(finite_mask))
+    total_points = grid.size
+
+    cmap = cm.get_cmap('inferno').copy()
+    cmap.set_bad('white', alpha=0.0)
+
+    masked = np.ma.masked_invalid(grid)
+    if finite_points:
+        vmin = float(np.nanmin(grid))
+        vmax = float(np.nanmax(grid))
+    else:
+        vmin, vmax = 0.0, 1.0
+
+    fig = plt.figure(figsize=(10, 8))
+    im = plt.imshow(masked, origin='upper', cmap=cmap, vmin=vmin, vmax=vmax)
+    label = 'RMSE mean'
+    if finite_points != total_points:
+        label += ' (sparse)'
+    plt.colorbar(im, label=label)
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title(f'RMSE mean [{title_suffix}]')
+
+    fig_dir.mkdir(parents=True, exist_ok=True)
+    fig_base = fig_dir / out_path.stem
+    save_figure_bundle(fig, fig_base, formats=("png", "svg"), with_pickle=True)
+    plt.close(fig)
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,74 +79,61 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('--basis-root', default='data', help='Root folder with basis_{i}')
     p.add_argument('--functions', default='data/functions.wave', help='Path to functions.wave')
     p.add_argument('--smooth-sigma', type=float, default=None,
-                   help='Gaussian sigma to pre-smooth reconstructed forms before RMSE (also used for the smoothed preview)')
-    p.add_argument('--rmse-out', required=True, help='Base output .npy path for raw mean RMSE grid')
-    p.add_argument('--save-dir', default=None, help='Directory to save PNG/SVG/PKL visualizations (defaults to rmse-out directory)')
+                   help='Gaussian sigma to pre-smooth reconstructed forms before RMSE')
+    p.add_argument('--out-dir', default='output/rmse_mean', help='Directory where output grids/figures will be stored')
+    p.add_argument('--visualize-only', action='store_true',
+                   help='Skip RMSE recompute; regenerate figures from existing npy files')
     return p.parse_args()
 
 
-def _suffix_path(path: str, suffix: str) -> str:
-    base, ext = os.path.splitext(path)
-    return f"{base}{suffix}{ext}"
+def _find_smoothed_path(base_name: str, sigma: float, out_dir: Path) -> Path | None:
+    candidates = [
+        out_dir / f"{base_name}__recon_sigma_{_format_sigma_tag(sigma)}.npy",
+        out_dir / f"{base_name}__recon_sigma_{_sanitize_tag(f'{sigma:g}')}.npy",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
 
 
-def _format_sigma(sigma: float) -> str:
-    if sigma is None:
-        return 'none'
-    text = f"{sigma:g}"
-    return text.replace('.', '_')
+def _visualize_only(i_list: List[int], functions_path: str, smooth_sigma: float | None, out_dir: Path) -> None:
+    fig_dir = out_dir
+    base_name = _build_base_name(i_list, functions_path)
 
-
-def render_interpolated(grid: np.ndarray,
-                        fig_base_path: str,
-                        title_suffix: str,
-                        display_sigma: float | None) -> None:
-    import matplotlib.pyplot as plt
-
-    finite_mask = np.isfinite(grid)
-    H, W = grid.shape
-    finite_points = int(np.count_nonzero(finite_mask))
-    total_points = grid.size
-    threshold = min(50000, 0.5 * total_points)
-    fill_ratio = finite_points / total_points if total_points else 0.0
-
-    if finite_points >= 3 and (finite_points <= threshold or fill_ratio <= 0.5):
-        sigma = float(display_sigma) if display_sigma and display_sigma > 0 else 3.0
-        grid_full = gaussian_smooth_nan(grid, sigma=sigma)
+    raw_path = out_dir / f"{base_name}__recon_sigma_none.npy"
+    if raw_path.exists():
+        raw_grid = np.load(raw_path)
+        _save_grid(raw_grid, raw_path, f"i_list={i_list}, recon_sigma=none", fig_dir)
     else:
-        grid_full = grid
+        print(f"[warn] raw grid not found: {raw_path}")
 
-    fig = plt.figure(figsize=(10, 8))
-    im = plt.imshow(grid_full, origin='upper', cmap='inferno')
-    plt.colorbar(im, label='RMSE mean' if finite_points == total_points else 'RMSE mean (interpolated)')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title(f'RMSE mean [{title_suffix}]')
-    save_figure_bundle(fig, fig_base_path, formats=("png", "svg"), with_pickle=True)
-    plt.close(fig)
-
-
-def save_grid_bundle(grid: np.ndarray,
-                     out_path: str,
-                     title_suffix: str,
-                     display_sigma: float | None,
-                     save_dir: str | None) -> None:
-    os.makedirs(os.path.dirname(out_path) or '.', exist_ok=True)
-    np.save(out_path, grid)
-
-    fig_base = os.path.splitext(out_path)[0]
-    if save_dir is not None:
-        os.makedirs(save_dir, exist_ok=True)
-        base_name = os.path.basename(fig_base)
-        fig_base_path = os.path.join(save_dir, base_name)
-    else:
-        fig_base_path = fig_base
-    render_interpolated(grid, fig_base_path, title_suffix, display_sigma)
+    if smooth_sigma and smooth_sigma > 0:
+        smooth_path = _find_smoothed_path(base_name, smooth_sigma, out_dir)
+        if smooth_path:
+            smooth_grid = np.load(smooth_path)
+            _save_grid(
+                smooth_grid,
+                smooth_path,
+                f"i_list={i_list}, recon_sigma={smooth_sigma:g}",
+                fig_dir,
+            )
+        else:
+            print(f"[warn] smoothed grid not found for sigma={smooth_sigma}: {base_name}")
 
 
 def main() -> None:
     args = parse_args()
+    out_dir = Path(args.out_dir)
+    fig_dir = out_dir
+
     i_list = [int(s) for s in args.i_list.split(',') if s.strip()]
+
+    if args.visualize_only:
+        _visualize_only(i_list, args.functions, args.smooth_sigma, out_dir)
+        return
+
+    base_name = _build_base_name(i_list, args.functions)
 
     raw_grid, _ = average_rmse_over_i(
         i_list,
@@ -97,9 +142,8 @@ def main() -> None:
         functions_path=args.functions,
         smooth_sigma=None,
     )
-
-    base_title = f"i_list={i_list}"
-    save_grid_bundle(raw_grid, args.rmse_out, f"{base_title}, recon_sigma=none", None, args.save_dir)
+    raw_path = out_dir / f"{base_name}__recon_sigma_none.npy"
+    _save_grid(raw_grid, raw_path, f"i_list={i_list}, recon_sigma=none", fig_dir)
 
     if args.smooth_sigma and args.smooth_sigma > 0:
         smooth_grid, _ = average_rmse_over_i(
@@ -109,14 +153,13 @@ def main() -> None:
             functions_path=args.functions,
             smooth_sigma=args.smooth_sigma,
         )
-        sigma_tag = _format_sigma(args.smooth_sigma)
-        smooth_path = _suffix_path(args.rmse_out, f"__smooth_sigma{sigma_tag}")
-        save_grid_bundle(
+        sigma_tag = _format_sigma_tag(args.smooth_sigma)
+        smooth_path = out_dir / f"{base_name}__recon_sigma_{sigma_tag}.npy"
+        _save_grid(
             smooth_grid,
             smooth_path,
-            f"{base_title}, recon_sigma={args.smooth_sigma:g}",
-            float(args.smooth_sigma),
-            args.save_dir,
+            f"i_list={i_list}, recon_sigma={args.smooth_sigma:g}",
+            fig_dir,
         )
 
 
