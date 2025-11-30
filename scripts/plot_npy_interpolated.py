@@ -94,17 +94,17 @@ def finite_limits(arrays: Iterable[np.ndarray]) -> Tuple[float, float]:
 
 
 def plot_arrays(original: np.ndarray, filled: np.ndarray, title: str, dpi: int) -> None:
-    masked_original = np.ma.masked_invalid(original)
+    """Display only the interpolated array (original kept for potential future use)."""
+    _ = original  # kept for API compatibility; plotting only uses the filled array
     masked_filled = np.ma.masked_invalid(filled)
-    vmin, vmax = finite_limits((masked_original, masked_filled))
+    vmin, vmax = finite_limits((masked_filled,))
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5), dpi=dpi, sharex=True, sharey=True)
-    for ax, data, label in zip(axes, (masked_original, masked_filled), ("Original", "Interpolated")):
-        im = ax.imshow(data, origin="upper", cmap="viridis", vmin=vmin, vmax=vmax)
-        ax.set_title(label)
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=dpi)
+    im = ax.imshow(masked_filled, origin="upper", cmap="viridis", vmin=vmin, vmax=vmax)
+    ax.set_title("Interpolated")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.suptitle(title)
     fig.tight_layout()
     plt.show()
